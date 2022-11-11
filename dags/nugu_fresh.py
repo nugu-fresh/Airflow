@@ -4,8 +4,8 @@ import os
 import logging
 import requests
 import json
+from datetime import datetime
 
-# produced 추가 해야할듯 to dataframe,,
 def extract_load_price_input(mysql_conn_id, execution_date, **context):
 
     none_id_list = [] 
@@ -63,6 +63,7 @@ def extract_load_price_input(mysql_conn_id, execution_date, **context):
         values_list.append(( 5, int(response['data']['item'][0]['price'].replace(',', '')) ))
 
     if not values_list:
+        context['ti'].xcom_push(key='none_id_list', value=none_id_list)
         return 'transform_price_output'
     else:
         sql_string = ''
@@ -75,11 +76,11 @@ def extract_load_price_input(mysql_conn_id, execution_date, **context):
         
         sql_string = "INSERT INTO " + table_name + " values " + sql_string[:-1]
         
-        mysql = MySqlHook(mysql_conn_id=mysql_conn_id)
-        conn = mysql.get_conn()
-        cur = conn.cursor()
-        cur.execute(sql_string)
-        conn.commit()
+        # mysql = MySqlHook(mysql_conn_id=mysql_conn_id)
+        # conn = mysql.get_conn()
+        # cur = conn.cursor()
+        # cur.execute(sql_string)
+        # conn.commit()
 
         context['ti'].xcom_push(key='none_id_list', value=none_id_list)
         context['ti'].xcom_push(key='transform_id_list', value=transform_id_list)
@@ -113,18 +114,29 @@ def extract_load_other_input(mysql_conn_id, execution_date, **context):
 
     sql_string = "INSERT INTO " + table_name + " values " + str(values)
         
-    mysql = MySqlHook(mysql_conn_id=mysql_conn_id)
-    conn = mysql.get_conn()
-    cur = conn.cursor()
-    cur.execute(sql_string)
-    conn.commit()
+    # mysql = MySqlHook(mysql_conn_id=mysql_conn_id)
+    # conn = mysql.get_conn()
+    # cur = conn.cursor()
+    # cur.execute(sql_string)
+    # conn.commit()
 
 def transform_load_price_output(mysql_conn_id, execution_date, **context):
 
     transform_id_list = context['ti'].xcom_pull(key='transform_id_list')
     
     for id in transform_id_list:
-        print(id)
+
+        mysql = MySqlHook(mysql_conn_id=mysql_conn_id)
+        conn = mysql.get_conn()
+        cur = conn.cursor()
+        sql_string = 'select * from PriceInput where id={} order by date'.format(id)
+        cur.execute(sql_string)
+        rows = cur.fetchall()
+
+        columnNames = [column[0] for column in cur.description]
+        df = pd.DataFrame(rows, columns=columnNames)
+
+        print(df)
 
 def transform_price_output(mysql_conn_id, execution_date, **context):
 

@@ -72,5 +72,5 @@ completion_nugu_fresh_elt = DummyOperator(
 extract_load_price_input >> extract_load_other_input >> transform_load_price_output >> transform_price_output >> completion_nugu_fresh_elt
 # 가격이 모두 존재하는 경우
 extract_load_price_input >> extract_load_other_input >> transform_load_price_output >> completion_nugu_fresh_elt
-# 가격이 모두 없는 경우( 데이터프레임이 빈 경우 )
+# 가격이 모두 없는 경우
 extract_load_price_input >> transform_price_output >> completion_nugu_fresh_elt
