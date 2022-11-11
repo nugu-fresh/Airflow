@@ -8,8 +8,6 @@ import json
 # produced 추가 해야할듯 to dataframe,,
 def extract_load_price_input(mysql_conn_id, execution_date, **context):
 
-    # m_execution_date = execution_date.replace('-', '')
-
     none_id_list = [] 
     transform_id_list = []
     values_list = []
@@ -91,7 +89,6 @@ def extract_load_other_input(mysql_conn_id, execution_date, **context):
 
     # dtparam = execution_date.replace('-', '') => 추후 이걸로 변경 예정, 시간 관련 때문에 지금은 전날것으로 진행
     dtparam = '2022-11-10'.replace('-', '')
-    print(dtparam)
 
     url = 'http://apis.data.go.kr/1360000/AsosDalyInfoService/getWthrDataList'
     params = { 'serviceKey' : 'tFJ4Yv6uk6Ln/rLoQmzsa+yxjSDOfbEoMowILA/o9GeEyd1nFUASVIKlFxIO91N0Ix2DQXGYNbai7XHf2sCpMw==',
@@ -109,11 +106,18 @@ def extract_load_other_input(mysql_conn_id, execution_date, **context):
 
     if response['sumRn'] == '':
         response['sumRn'] = '0.0'
+    values = ( execution_date, float(response['sumRn']), float(response['avgWs']), 2.5, 8.7 ) # 강수량, 풍속, 소비자 물가 상승률, 농산물 물가 상승률
 
-    sql = [ execution_date, float(response['sumRn']), float(response['avgWs']), 1.0, 2.0 ] # 숫자 채우기 at sobimul, nongmul
-    print(response['sumRn']) # 평균 강수량 
-    print(response['avgWs']) # 평균 풍속
-    print(sql)
+    sql_string = ''
+    table_name = 'OtherInput'
+
+    sql_string = "INSERT INTO " + table_name + " values " + str(values)
+        
+    mysql = MySqlHook(mysql_conn_id=mysql_conn_id)
+    conn = mysql.get_conn()
+    cur = conn.cursor()
+    cur.execute(sql_string)
+    conn.commit()
 
 def transform_load_price_output(mysql_conn_id, execution_date, **context):
 
