@@ -17,7 +17,7 @@ def extract_load_price_input(mysql_conn_id, execution_date, **context):
     values_list = []
     
     # 임시 설정
-    execution_date = '2022-11-11'
+    execution_date = '2022-11-13'
 
     # 1. 배추 
     url = 'http://www.kamis.or.kr/service/price/xml.do?action=periodProductList&p_productclscode=01&p_startday={}&p_endday={}&p_itemcategorycode=200&p_itemcode=211&p_kindcode=03&p_productrankcode=04&p_countrycode=1101&p_convert_kg_yn=n&p_cert_key=938c7121-0448-4cf5-acfe-e4f87400e335&p_cert_id=2926&p_returntype=json'.format(execution_date, execution_date) 

@@ -53,6 +53,7 @@ transform_load_price_output = BranchPythonOperator(
 
 transform_price_output = PythonOperator(
     task_id ='transform_price_output',
+    trigger_rule='none_failed_or_skipped',
     python_callable = nugu_fresh.transform_price_output,
     op_kwargs={
             'mysql_conn_id' : nugu_fresh_conn_id,
