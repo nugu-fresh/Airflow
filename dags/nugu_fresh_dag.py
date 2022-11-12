@@ -40,7 +40,7 @@ extract_load_other_input = PythonOperator(
     dag= dag
 )
 
-transform_load_price_output = PythonOperator(
+transform_load_price_output = BranchPythonOperator(
     task_id ='transform_load_price_output',
     python_callable = nugu_fresh.transform_load_price_output,
     op_kwargs={

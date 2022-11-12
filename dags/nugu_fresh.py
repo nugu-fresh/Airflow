@@ -1,16 +1,23 @@
 from airflow.hooks.mysql_hook import MySqlHook
 import pandas as pd
+import numpy as np
 import os
 import logging
 import requests
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
+from sklearn.preprocessing import MinMaxScaler
+import joblib
+from keras.models import load_model
 
 def extract_load_price_input(mysql_conn_id, execution_date, **context):
 
     none_id_list = [] 
     transform_id_list = []
     values_list = []
+    
+    # 임시 설정
+    execution_date = '2022-11-11'
 
     # 1. 배추 
     url = 'http://www.kamis.or.kr/service/price/xml.do?action=periodProductList&p_productclscode=01&p_startday={}&p_endday={}&p_itemcategorycode=200&p_itemcode=211&p_kindcode=03&p_productrankcode=04&p_countrycode=1101&p_convert_kg_yn=n&p_cert_key=938c7121-0448-4cf5-acfe-e4f87400e335&p_cert_id=2926&p_returntype=json'.format(execution_date, execution_date) 
@@ -75,10 +82,17 @@ def extract_load_price_input(mysql_conn_id, execution_date, **context):
             sql_string = sql_string + str(value) + ','
         
         sql_string = "INSERT INTO " + table_name + " values " + sql_string[:-1]
+        print(sql_string)
         
         # mysql = MySqlHook(mysql_conn_id=mysql_conn_id)
         # conn = mysql.get_conn()
         # cur = conn.cursor()
+        # cur.execute(sql_string)
+        # conn.commit()
+
+        sql_string = "TRUNCATE PriceOutput"
+        print(sql_string)
+
         # cur.execute(sql_string)
         # conn.commit()
 
@@ -113,10 +127,8 @@ def extract_load_other_input(mysql_conn_id, execution_date, **context):
     table_name = 'OtherInput'
 
     sql_string = "INSERT INTO " + table_name + " values " + str(values)
-        
-    # mysql = MySqlHook(mysql_conn_id=mysql_conn_id)
-    # conn = mysql.get_conn()
-    # cur = conn.cursor()
+    
+    print(sql_string)
     # cur.execute(sql_string)
     # conn.commit()
 
@@ -129,16 +141,105 @@ def transform_load_price_output(mysql_conn_id, execution_date, **context):
         mysql = MySqlHook(mysql_conn_id=mysql_conn_id)
         conn = mysql.get_conn()
         cur = conn.cursor()
-        sql_string = 'select * from PriceInput where id={} order by date'.format(id)
+
+        sql_string = 'select * from PriceInput natural join OtherInput where id={} order by date'.format(id)
+        cur.execute(sql_string)
+        rows = cur.fetchall()
+
+        columnNames = [column[0] for column in cur.description]
+        df = pd.DataFrame(rows, columns=columnNames)
+        
+        df['date'] = pd.to_datetime(df['date'])
+        df['day'] = df['date'].dt.dayofweek
+        df['day'] = df['day'].astype('category')
+        df = pd.get_dummies(df, columns =['day'], prefix='W', drop_first=True)
+
+        input_indicator = df.loc[:,['price','produced','rain','wind','sobimul','nongmul']]
+        day_indicator = df.loc[:,['W_1', 'W_2', 'W_3', 'W_4']]
+
+        file_name = 'Input{}_scaler.pkl'.format(id)
+        file_path = os.path.abspath(os.path.join(file_name)) 
+        scaler = joblib.load(file_path)
+        
+        scaled_input_indicator = scaler.transform(input_indicator)
+        scaled_day_indicator = day_indicator.to_numpy()
+
+        x = np.concatenate((scaled_input_indicator, scaled_day_indicator), axis=1)
+        y = x[:, [0]]
+        
+        seq_length = 7
+        predict_day = 7
+        dataX = [] 
+        dataY = [] 
+        for i in range(0, int(len(y) - seq_length - predict_day)):
+            _x = x[i : i + seq_length]
+            _y = y[i + predict_day : i + seq_length + predict_day] 
+            dataX.append(_x) 
+            dataY.append(_y) 
+
+        batch_size = 14
+        input = np.array(dataX[batch_size * -1:]) 
+
+        model_name = 'model{}.h5'.format(id)
+        model_path = os.path.abspath(os.path.join(model_name)) 
+        model = load_model(model_path)
+        output = model.predict(input, batch_size = batch_size)
+
+        output = output[batch_size - 1]
+        output = np.reshape(output, (7, ))
+        
+        file_name = 'Target{}_scaler.pkl'.format(id)
+        file_path = os.path.abspath(os.path.join(file_name)) 
+        scaler_target = joblib.load(file_path) 
+        output = scaler_target.inverse_transform(output.reshape(-1,1))
+
+        sql_string = "DELETE FROM PriceOutput where id={}".format(id)
+        # cur.execute(sql_string)
+        # conn.commit()
+
+        for i in range(len(output)):
+            idate = datetime.today() + timedelta(i+1)
+            idate = idate.strftime("%Y-%m-%d")
+            ivalues = ( idate, ) + ( id, ) + ( output[i][0], )
+            sql_string = "INSERT INTO PriceOutput values {}".format(ivalues)
+            print(sql_string)
+            # cur.execute(sql_string)
+            # conn.commit()
+
+    none_id_list = context['ti'].xcom_pull(key='none_id_list')
+    
+    if not none_id_list:
+        return 'completion_nugu_fresh_elt'
+    else:
+        return 'transform_price_output'
+
+def transform_price_output(mysql_conn_id, execution_date, **context):
+
+    none_id_list = context['ti'].xcom_pull(key='none_id_list')
+
+    for id in none_id_list:
+
+        mysql = MySqlHook(mysql_conn_id=mysql_conn_id)
+        conn = mysql.get_conn()
+        cur = conn.cursor()
+
+        sql_string = 'select * from PriceOutput where id={}'.format(id)
         cur.execute(sql_string)
         rows = cur.fetchall()
 
         columnNames = [column[0] for column in cur.description]
         df = pd.DataFrame(rows, columns=columnNames)
 
-        print(df)
+        sql_string = 'DELETE from PriceOutput where id={}'.format(id)
+        print(sql_string)
+        # cur.execute(sql_string)
+        # conn.commit()
 
-def transform_price_output(mysql_conn_id, execution_date, **context):
-
-    print('hihi')
-    
+        for idx, row in df.iterrows():
+            idate = datetime.today() + timedelta(idx+1)
+            idate = idate.strftime("%Y-%m-%d")
+            sql_string = "INSERT INTO PriceOutput VALUES ('{}', {}, {})".format( idate, row['id'], row['price'] )
+            print(sql_string)
+            # cur.execute(sql_string)
+            # conn.commit()
+        
