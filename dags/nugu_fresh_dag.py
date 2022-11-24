@@ -10,7 +10,7 @@ nugu_fresh_conn_id = 'nugu_fresh_conn_id'
 default_args={
     'owner': 'nugu_fresh',
     'depends_on_past':False,
-    'start_date':datetime(2022,8,25),
+    'start_date':datetime(2022,10,2),
     'catchup': False, 
     'retries':1, 
     'retry_delay': timedelta(minutes=5),
@@ -23,7 +23,8 @@ extract_load_price_input = BranchPythonOperator(
     python_callable=nugu_fresh.extract_load_price_input,
     op_kwargs={
         'mysql_conn_id' : nugu_fresh_conn_id,
-        'execution_date': "{{ ( execution_date ).strftime('%Y-%m-%d') }}",
+        'execution_date': "{{ ( prev_execution_date ).strftime('%Y-%m-%d') }}",
+        # 'execution_date': "{{ ( execution_date ).strftime('%Y-%m-%d') }}",
     },
     provide_context=True,
     dag= dag

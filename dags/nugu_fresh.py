@@ -16,7 +16,9 @@ def extract_load_price_input(mysql_conn_id, execution_date, **context):
     transform_id_list = []
     values_list = []
     
-    # 임시 설정
+    # execution_date = execution_date
+    # print(execution_date, type(execution_date))
+    임시 설정
     execution_date = '2022-11-13'
 
     # 1. 배추 
@@ -158,7 +160,7 @@ def transform_load_price_output(mysql_conn_id, execution_date, **context):
         day_indicator = df.loc[:,['W_1', 'W_2', 'W_3', 'W_4']]
 
         file_name = 'Input{}_scaler.pkl'.format(id)
-        file_path = os.path.abspath(os.path.join(file_name)) 
+        file_path = os.path.dirname(os.path.abspath(os.path.dirname(__file__))) + "/iscalers/" + file_name
         scaler = joblib.load(file_path)
         
         scaled_input_indicator = scaler.transform(input_indicator)
@@ -181,7 +183,7 @@ def transform_load_price_output(mysql_conn_id, execution_date, **context):
         input = np.array(dataX[batch_size * -1:]) 
 
         model_name = 'model{}.h5'.format(id)
-        model_path = os.path.abspath(os.path.join(model_name)) 
+        model_path = os.path.dirname(os.path.abspath(os.path.dirname(__file__))) + "/models/" + model_name
         model = load_model(model_path)
         output = model.predict(input, batch_size = batch_size)
 
@@ -189,7 +191,7 @@ def transform_load_price_output(mysql_conn_id, execution_date, **context):
         output = np.reshape(output, (7, ))
         
         file_name = 'Target{}_scaler.pkl'.format(id)
-        file_path = os.path.abspath(os.path.join(file_name)) 
+        file_path = os.path.dirname(os.path.abspath(os.path.dirname(__file__))) + "/tscalers/" + file_names
         scaler_target = joblib.load(file_path) 
         output = scaler_target.inverse_transform(output.reshape(-1,1))
 
