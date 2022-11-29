@@ -15,11 +15,7 @@ def extract_load_price_input(mysql_conn_id, execution_date, **context):
     none_id_list = [] 
     transform_id_list = []
     values_list = []
-    
-    # execution_date = execution_date
-    # print(execution_date, type(execution_date))
-    임시 설정
-    execution_date = '2022-11-13'
+    execution_date = execution_date
 
     # 1. 배추 
     url = 'http://www.kamis.or.kr/service/price/xml.do?action=periodProductList&p_productclscode=01&p_startday={}&p_endday={}&p_itemcategorycode=200&p_itemcode=211&p_kindcode=03&p_productrankcode=04&p_countrycode=1101&p_convert_kg_yn=n&p_cert_key=938c7121-0448-4cf5-acfe-e4f87400e335&p_cert_id=2926&p_returntype=json'.format(execution_date, execution_date) 
@@ -86,17 +82,17 @@ def extract_load_price_input(mysql_conn_id, execution_date, **context):
         sql_string = "INSERT INTO " + table_name + " values " + sql_string[:-1]
         print(sql_string)
         
-        # mysql = MySqlHook(mysql_conn_id=mysql_conn_id)
-        # conn = mysql.get_conn()
-        # cur = conn.cursor()
-        # cur.execute(sql_string)
-        # conn.commit()
+        mysql = MySqlHook(mysql_conn_id=mysql_conn_id)
+        conn = mysql.get_conn()
+        cur = conn.cursor()
+        cur.execute(sql_string)
+        conn.commit()
 
         sql_string = "TRUNCATE PriceOutput"
         print(sql_string)
 
-        # cur.execute(sql_string)
-        # conn.commit()
+        cur.execute(sql_string)
+        conn.commit()
 
         context['ti'].xcom_push(key='none_id_list', value=none_id_list)
         context['ti'].xcom_push(key='transform_id_list', value=transform_id_list)
@@ -130,9 +126,13 @@ def extract_load_other_input(mysql_conn_id, execution_date, **context):
 
     sql_string = "INSERT INTO " + table_name + " values " + str(values)
     
+    mysql = MySqlHook(mysql_conn_id=mysql_conn_id)
+    conn = mysql.get_conn()
+    cur = conn.cursor()
+
     print(sql_string)
-    # cur.execute(sql_string)
-    # conn.commit()
+    cur.execute(sql_string)
+    conn.commit()
 
 def transform_load_price_output(mysql_conn_id, execution_date, **context):
 
@@ -179,7 +179,7 @@ def transform_load_price_output(mysql_conn_id, execution_date, **context):
             dataX.append(_x) 
             dataY.append(_y) 
 
-        batch_size = 14
+        batch_size = 7
         input = np.array(dataX[batch_size * -1:]) 
 
         model_name = 'model{}.h5'.format(id)
@@ -191,13 +191,13 @@ def transform_load_price_output(mysql_conn_id, execution_date, **context):
         output = np.reshape(output, (7, ))
         
         file_name = 'Target{}_scaler.pkl'.format(id)
-        file_path = os.path.dirname(os.path.abspath(os.path.dirname(__file__))) + "/tscalers/" + file_names
+        file_path = os.path.dirname(os.path.abspath(os.path.dirname(__file__))) + "/tscalers/" + file_name
         scaler_target = joblib.load(file_path) 
         output = scaler_target.inverse_transform(output.reshape(-1,1))
 
         sql_string = "DELETE FROM PriceOutput where id={}".format(id)
-        # cur.execute(sql_string)
-        # conn.commit()
+        cur.execute(sql_string)
+        conn.commit()
 
         for i in range(len(output)):
             idate = datetime.today() + timedelta(i+1)
@@ -205,8 +205,8 @@ def transform_load_price_output(mysql_conn_id, execution_date, **context):
             ivalues = ( idate, ) + ( id, ) + ( output[i][0], )
             sql_string = "INSERT INTO PriceOutput values {}".format(ivalues)
             print(sql_string)
-            # cur.execute(sql_string)
-            # conn.commit()
+            cur.execute(sql_string)
+            conn.commit()
 
     none_id_list = context['ti'].xcom_pull(key='none_id_list')
     
@@ -234,14 +234,14 @@ def transform_price_output(mysql_conn_id, execution_date, **context):
 
         sql_string = 'DELETE from PriceOutput where id={}'.format(id)
         print(sql_string)
-        # cur.execute(sql_string)
-        # conn.commit()
+        cur.execute(sql_string)
+        conn.commit()
 
         for idx, row in df.iterrows():
             idate = datetime.today() + timedelta(idx+1)
             idate = idate.strftime("%Y-%m-%d")
             sql_string = "INSERT INTO PriceOutput VALUES ('{}', {}, {})".format( idate, row['id'], row['price'] )
             print(sql_string)
-            # cur.execute(sql_string)
-            # conn.commit()
+            cur.execute(sql_string)
+            conn.commit()
         
