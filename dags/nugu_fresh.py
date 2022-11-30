@@ -101,8 +101,7 @@ def extract_load_price_input(mysql_conn_id, execution_date, **context):
 
 def extract_load_other_input(mysql_conn_id, execution_date, **context):
 
-    # dtparam = execution_date.replace('-', '') => 추후 이걸로 변경 예정, 시간 관련 때문에 지금은 전날것으로 진행
-    dtparam = '2022-11-10'.replace('-', '')
+    execution_date = execution_date
 
     url = 'http://apis.data.go.kr/1360000/AsosDalyInfoService/getWthrDataList'
     params = { 'serviceKey' : 'tFJ4Yv6uk6Ln/rLoQmzsa+yxjSDOfbEoMowILA/o9GeEyd1nFUASVIKlFxIO91N0Ix2DQXGYNbai7XHf2sCpMw==',
@@ -111,8 +110,8 @@ def extract_load_other_input(mysql_conn_id, execution_date, **context):
          'dataType' : 'json',
          'dataCd' : 'ASOS',
          'dateCd' : 'DAY',
-         'startDt' : dtparam,
-         'endDt' : dtparam,
+         'startDt' : execution_date.replace('-', ''),
+         'endDt' : execution_date.replace('-', ''),
          'stnIds' : '108' }
 
     response = requests.get(url, params=params).json()
