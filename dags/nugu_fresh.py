@@ -16,6 +16,7 @@ def extract_load_price_input(mysql_conn_id, execution_date, **context):
     transform_id_list = []
     values_list = []
     execution_date = execution_date
+    print(execution_date)
 
     # 1. 배추 
     url = 'http://www.kamis.or.kr/service/price/xml.do?action=periodProductList&p_productclscode=01&p_startday={}&p_endday={}&p_itemcategorycode=200&p_itemcode=211&p_kindcode=03&p_productrankcode=04&p_countrycode=1101&p_convert_kg_yn=n&p_cert_key=938c7121-0448-4cf5-acfe-e4f87400e335&p_cert_id=2926&p_returntype=json'.format(execution_date, execution_date) 
@@ -196,10 +197,16 @@ def transform_load_price_output(mysql_conn_id, execution_date, **context):
         output = scaler_target.inverse_transform(output.reshape(-1,1))
 
         sql_string = "DELETE FROM PriceOutput where id={}".format(id)
+        print(sql_string)
         cur.execute(sql_string)
         conn.commit()
 
         for i in range(len(output)):
+
+            mysql = MySqlHook(mysql_conn_id=mysql_conn_id)
+            conn = mysql.get_conn()
+            cur = conn.cursor()
+
             idate = datetime.today() + timedelta(i+1)
             idate = idate.strftime("%Y-%m-%d")
             ivalues = ( idate, ) + ( id, ) + ( output[i][0], )
@@ -238,6 +245,11 @@ def transform_price_output(mysql_conn_id, execution_date, **context):
         conn.commit()
 
         for idx, row in df.iterrows():
+
+            mysql = MySqlHook(mysql_conn_id=mysql_conn_id)
+            conn = mysql.get_conn()
+            cur = conn.cursor()
+
             idate = datetime.today() + timedelta(idx+1)
             idate = idate.strftime("%Y-%m-%d")
             sql_string = "INSERT INTO PriceOutput VALUES ('{}', {}, {})".format( idate, row['id'], row['price'] )

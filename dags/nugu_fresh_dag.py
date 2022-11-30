@@ -23,7 +23,7 @@ extract_load_price_input = BranchPythonOperator(
     python_callable=nugu_fresh.extract_load_price_input,
     op_kwargs={
         'mysql_conn_id' : nugu_fresh_conn_id,
-        'execution_date': "{{ yesterday_ds }}",
+        'execution_date': "{{ ( execution_date ).strftime('%Y-%m-%d') }}",
     },
     provide_context=True,
     dag= dag
@@ -34,7 +34,7 @@ extract_load_other_input = PythonOperator(
     python_callable=nugu_fresh.extract_load_other_input,
     op_kwargs={
             'mysql_conn_id' : nugu_fresh_conn_id,
-            'execution_date': "{{ yesterday_ds }}",
+            'execution_date': "{{ ( execution_date ).strftime('%Y-%m-%d') }}",
         },
     provide_context=True,
     dag= dag
@@ -45,7 +45,7 @@ transform_load_price_output = BranchPythonOperator(
     python_callable = nugu_fresh.transform_load_price_output,
     op_kwargs={
             'mysql_conn_id' : nugu_fresh_conn_id,
-            'execution_date': "{{ yesterday_ds }}",
+            'execution_date': "{{ ( execution_date ).strftime('%Y-%m-%d') }}",
         },
     provide_context=True,
     dag= dag
@@ -57,7 +57,7 @@ transform_price_output = PythonOperator(
     python_callable = nugu_fresh.transform_price_output,
     op_kwargs={
             'mysql_conn_id' : nugu_fresh_conn_id,
-            'execution_date': "{{ yesterday_ds }}",
+            'execution_date': "{{ ( execution_date ).strftime('%Y-%m-%d') }}",
         },
     provide_context=True,
     dag= dag
